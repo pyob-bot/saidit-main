@@ -49,6 +49,8 @@ export default function UserProfilePage() {
   const [recentPosts, setRecentPosts] = useState<UserPost[]>([]);
   const [recentComments, setRecentComments] = useState<UserComment[]>([]);
   const [savedPosts, setSavedPosts] = useState<{ id: string; post: { id: string; title: string; community: { name: string }; author: { username: string } } }[]>([]);
+  const [savedManageMode, setSavedManageMode] = useState(false);
+  const [savedSelected, setSavedSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<"posts" | "comments" | "saved">("posts");
 
@@ -75,6 +77,24 @@ export default function UserProfilePage() {
       .then((data) => setSavedPosts(data.savedPosts || []))
       .catch(() => {});
   }, [fetchUser]);
+
+  const handleDeleteSaved = async () => {
+    if (savedSelected.length === 0) return;
+    try {
+      const res = await fetch("/api/saved", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ids: savedSelected }),
+      });
+      if (res.ok) {
+        setSavedPosts((prev) => prev.filter((sp) => !savedSelected.includes(sp.id)));
+        setSavedSelected([]);
+        setSavedManageMode(false);
+      }
+    } catch (error) {
+      console.error("Delete saved error:", error);
+    }
+  };
 
   if (loading) {
     return (
@@ -222,24 +242,79 @@ export default function UserProfilePage() {
                         <p className="text-xs text-[#878a8c] mt-1">Click the bookmark icon on any post to save it here.</p>
                       </div>
                     ) : (
-                      <div className="space-y-2">
-                        {savedPosts.map((sp) => (
-                          <Link
-                            key={sp.id}
-                            href={`/post/${sp.post.id}`}
-                            className="flex items-center gap-3 p-3 border border-[#edeff1] rounded hover:bg-[#f8f9fa] transition-colors"
-                          >
-                            <svg className="w-5 h-5 text-[#ff4500] shrink-0" fill="currentColor" viewBox="0 0 24 24">
-                              <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
-                            </svg>
-                            <div className="min-w-0 flex-1">
-                              <div className="text-sm font-medium text-[#1a1a1b] truncate">{sp.post.title}</div>
-                              <div className="text-xs text-[#878a8c]">
-                                c/{sp.post.community.name} · by u/{sp.post.author.username}
+                      <div>
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="text-xs text-[#878a8c]">{savedPosts.length} saved</span>
+                          <div className="flex gap-2">
+                            {savedManageMode ? (
+                              <>
+                                <button
+                                  onClick={() => {
+                                    setSavedSelected([]);
+                                    setSavedManageMode(false);
+                                  }}
+                                  className="text-xs px-2 py-1 text-[#878a8c] border border-[#ccc] rounded hover:bg-[#f8f9fa]"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={handleDeleteSaved}
+                                  disabled={savedSelected.length === 0}
+                                  className="text-xs px-2 py-1 text-white bg-red-500 rounded hover:bg-red-600 disabled:opacity-50"
+                                >
+                                  Delete ({savedSelected.length})
+                                </button>
+                              </>
+                            ) : (
+                              <button
+                                onClick={() => setSavedManageMode(true)}
+                                className="text-xs px-2 py-1 text-[#878a8c] border border-[#ccc] rounded hover:bg-[#f8f9fa]"
+                              >
+                                Manage
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        <div className="space-y-2">
+                          {savedPosts.map((sp) => (
+                            <div
+                              key={sp.id}
+                              className={`flex items-center gap-3 p-3 border rounded transition-colors ${
+                                savedManageMode
+                                  ? "cursor-pointer " + (savedSelected.includes(sp.id) ? "border-[#ff4500] bg-[#fff5f2]" : "border-[#edeff1] hover:border-[#ccc]")
+                                  : "border-[#edeff1] hover:bg-[#f8f9fa]"
+                              }`}
+                              onClick={() => {
+                                if (savedManageMode) {
+                                  setSavedSelected((prev) =>
+                                    prev.includes(sp.id) ? prev.filter((id) => id !== sp.id) : [...prev, sp.id]
+                                  );
+                                }
+                              }}
+                            >
+                              {savedManageMode && (
+                                <div className={`w-5 h-5 rounded border-2 flex items-center justify-center shrink-0 ${
+                                  savedSelected.includes(sp.id) ? "border-[#ff4500] bg-[#ff4500]" : "border-[#ccc]"
+                                }`}>
+                                  {savedSelected.includes(sp.id) && (
+                                    <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                              )}
+                              <svg className="w-5 h-5 text-[#ff4500] shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                                <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                              </svg>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium text-[#1a1a1b] truncate">{sp.post.title}</div>
+                                <div className="text-xs text-[#878a8c]">
+                                  c/{sp.post.community.name} · by u/{sp.post.author.username}
+                                </div>
                               </div>
                             </div>
-                          </Link>
-                        ))}
+                          ))}
+                        </div>
                       </div>
                     )}
                   </>
