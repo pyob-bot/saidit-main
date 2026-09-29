@@ -1,30 +1,44 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 
 interface Game {
   id: string;
+  slug: string;
   name: string;
   description: string;
   icon: string;
   color: string;
-  players: number;
   url: string;
 }
 
 const GAMES: Game[] = [
   {
     id: "elden-earth",
+    slug: "elden-earth",
     name: "Elden Earth",
     description: "Geo-land claim idle incremental game. Walk the real world, claim land, earn royalties.",
     icon: "🌍",
     color: "#ff4500",
-    players: 2847,
     url: "/games/elden-earth",
   },
 ];
 
 export default function GamesSidebar() {
+  const [playerCounts, setPlayerCounts] = useState<Record<string, number>>({});
+
+  useEffect(() => {
+    GAMES.forEach((game) => {
+      fetch(`/api/games/players?game=${game.slug}`)
+        .then((res) => res.json())
+        .then((data) => {
+          setPlayerCounts((prev) => ({ ...prev, [game.slug]: data.totalJoined || 0 }));
+        })
+        .catch(() => {});
+    });
+  }, []);
+
   return (
     <div className="sidebar-card">
       <div className="sidebar-card-header flex items-center gap-2">
@@ -57,8 +71,8 @@ export default function GamesSidebar() {
                 </div>
               </div>
               <div className="flex items-center gap-1 mt-2 text-xs text-[#46d160]">
-                <div className="w-1.5 h-1.5 bg-[#46d160] rounded-full animate-pulse" />
-                {game.players.toLocaleString()} playing now
+                <div className="w-1.5 h-1.5 bg-[#46d160] rounded-full" />
+                {playerCounts[game.slug] || 0} Saidit players
               </div>
             </Link>
           ))}

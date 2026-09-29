@@ -130,34 +130,59 @@ export async function GET(req: NextRequest) {
     where.createdAt = { lte: new Date() };
 
     let orderBy: Record<string, string>;
-    switch (sort) {
-      case "new":
-        orderBy = { createdAt: "desc" };
-        break;
-      case "top":
-        orderBy = { upvotes: "desc" };
-        break;
-      case "controversial":
-        orderBy = { commentCount: "desc" };
-        break;
-      default:
-        orderBy = { createdAt: "desc" };
-    }
+    let posts: unknown[];
+    let total: number;
 
-    const [posts, total] = await Promise.all([
-      prisma.post.findMany({
+    if (sort === "controversial") {
+      const allPosts = await prisma.post.findMany({
         where,
-        orderBy,
-        skip,
-        take: limit,
         include: {
           author: { select: { id: true, username: true, avatar: true, karma: true } },
           community: { select: { id: true, name: true, displayName: true, icon: true } },
           _count: { select: { comments: true } },
         },
-      }),
-      prisma.post.count({ where }),
-    ]);
+      });
+
+      total = allPosts.length;
+      posts = allPosts
+        .map((p) => {
+          const up = p.upvotes;
+          const down = p.downvotes;
+          const totalVotes = up + down;
+          const balance = Math.abs(up - down);
+          const controversy = totalVotes > 0 ? (totalVotes - balance) / totalVotes : 0;
+          const magnitude = Math.log10(totalVotes + 1);
+          return { ...p, controversyScore: controversy * magnitude };
+        })
+        .sort((a, b) => b.controversyScore - a.controversyScore)
+        .slice(skip, skip + limit);
+    } else {
+      switch (sort) {
+        case "new":
+          orderBy = { createdAt: "desc" };
+          break;
+        case "top":
+          orderBy = { upvotes: "desc" };
+          break;
+        default:
+          orderBy = { createdAt: "desc" };
+      }
+
+      [posts, total] = await Promise.all([
+        prisma.post.findMany({
+          where,
+          orderBy,
+          skip,
+          take: limit,
+          include: {
+            author: { select: { id: true, username: true, avatar: true, karma: true } },
+            community: { select: { id: true, name: true, displayName: true, icon: true } },
+            _count: { select: { comments: true } },
+          },
+        }),
+        prisma.post.count({ where }),
+      ]);
+    }
 
     return NextResponse.json({
       posts,

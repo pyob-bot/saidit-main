@@ -41,6 +41,7 @@ model User {
   savedPosts    SavedPost[]
   screenings    ScreeningLog[]
   settings      UserSettings?
+  gamePlayers   GamePlayer[]
 }
 
 model Community {
@@ -254,4 +255,16 @@ model UserSettings {
   showPostHistory    Boolean @default(true)
   allowFollowers     Boolean @default(true)
   safeBrowsing       Boolean @default(false)
+}
+
+model GamePlayer {
+  id        String   @id @default(uuid())
+  gameSlug  String
+  joinedAt  DateTime @default(now())
+  lastPlayed DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, gameSlug])
 }

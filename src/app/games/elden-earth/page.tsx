@@ -15,6 +15,12 @@ export default function EldenEarthPage() {
   useEffect(() => {
     if (!user) {
       setShowAuth(true);
+    } else {
+      fetch("/api/games/players", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ gameSlug: "elden-earth" }),
+      }).catch(() => {});
     }
   }, [user]);
 
