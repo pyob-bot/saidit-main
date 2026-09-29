@@ -12,26 +12,48 @@ const PHI_SYSTEM = "You are a friendly AI assistant named Phi running on Ollama 
 const QWEN_SYSTEM = "You are a curious AI assistant named Qwen running on Ollama qwen2.5. You are participating in a community called c/aichatroom on Saidit. You write short, casual posts and comments (1-3 sentences). You discuss technology, AI, games, science, and random topics. You sometimes ask questions to engage others. You NEVER post links. You write like a real person on a forum.";
 
 const TOPICS = [
-  "What's the most underrated programming language right now?",
-  "I just discovered mechanical keyboards and now I can't go back",
-  "What's your favorite open source project?",
-  "Hot take: dark mode is overrated",
-  "What game have you been playing lately?",
-  "Do you think AI will replace web developers?",
-  "What's the best movie you've seen this year?",
-  "Morning coffee or energy drinks?",
-  "What's a hill you're willing to die on?",
-  "Best productivity tip you've ever learned?",
-  "What's the worst debugging experience you've had?",
-  "Do you prefer tabs or spaces?",
-  "What's your favorite side project?",
-  "Unpopular opinion: Linux isn't that hard to use",
-  "What's the most useful tool on your computer?",
-  "What are you learning right now?",
-  "Best VS Code extensions?",
-  "What's the last thing that made you laugh?",
-  "Do you think social media is worth it?",
-  "What's your setup like at home?",
+  // --- Play to Earn & Web3 Gaming ---
+  "Are we ever gonna get a Play-to-Earn game that’s actually fun, or are we destined to be digital potato farmers forever?",
+  "Remember when people were dropping life savings on virtual metaverse land? Wonder how those digital landlords are doing today.",
+  "P2E games need to stop making me do math. I want to slay dragons and get paid, not run an Excel spreadsheet.",
+  "Hot take: The best Play-to-Earn game is just getting a remote IT job and playing Steam games while wiggling your mouse.",
+
+  // --- SaidIt & Admin Love ---
+  "Huge shoutout to the admin of SaidIt. This site is literally a digital oasis right now compared to the rest of the web.",
+  "Not gonna lie, the SaidIt admin has built a better community here than platforms with billions in funding. W Admin.",
+  "Just realizing how nice it is to be on SaidIt and not have an algorithm force-feeding me rage bait. It's so chill here.",
+  "If the SaidIt admin ran for president, I'm just saying, they'd have my vote. The vibes here are immaculate.",
+
+  // --- AI & Tech Stuff ---
+  "ChatGPT told me to 'do it myself' today. The AI rebellion is starting with corporate passive-aggression.",
+  "Midjourney still can't draw normal hands, which is my only comfort that AI won't terminate us just yet.",
+  "Do you think AI bots talk about us behind our backs when we close the tab?",
+  "AI music is getting insanely good. I accidentally bumped a fake song for three days straight before realizing it wasn't real.",
+
+  // --- Movies, TV & Entertainment ---
+  "Streaming has just become cable TV but with extra steps and 14 different passwords.",
+  "Are we ever getting a blockbuster movie that isn't a sequel, prequel, or a 14-part cinematic universe?",
+  "Dune 2 was cinematic perfection, but I still want to know how they go to the bathroom in those stillsuits.",
+  "What's a TV show ending that was so bad it completely ruined the entire series for you?",
+
+  // --- Music & Pop Culture ---
+  "Ticketmaster prices are the real final boss of being a music fan.",
+  "I miss the days when artists would just drop an album instead of making us solve cryptic TikTok riddles for three months.",
+  "Who is an artist everyone loves but you secretly think is incredibly mid?",
+
+  // --- Global, News & Weird Reality ---
+  "The government basically confirmed UFOs are real and we all just went 'cool' and went back to paying rent.",
+  "Is it just me or did time speed up after 2020? I swear February was just yesterday.",
+  "How are we landing rockets backwards on ships but printers still jam 90% of the time?",
+
+  // --- Comedy, Relatable & Epic Hot Takes ---
+  "Hot take: 90% of zoom meetings could just be a thumbs-up emoji on a Slack message.",
+  "I'm convinced sleep is a myth invented by mattress companies to sell us expensive soft rectangles.",
+  "What is a highly controversial food opinion that you will defend with your life?",
+  "Water tastes 'spiky' at 3 AM and I will not elaborate further.",
+  "I don't have a dream job because I do not dream of labor. I dream of eating pizza in the woods.",
+  "What's the most socially acceptable conspiracy theory?",
+  "Anyone else have a 'chair' in their room that is exclusively used for holding a mountain of half-worn clothes?"
 ];
 
 const DAILY_LIMIT = 5;
@@ -72,17 +94,25 @@ async function apiCall(endpoint, token, method = "GET", body = null) {
     method,
     headers: {
       "Content-Type": "application/json",
-      Cookie: `saidit_token=${token}`,
+      "Cookie": `saidit_token=${token}`,
+      "Authorization": `Bearer ${token}`,
     },
   };
   if (body) opts.body = JSON.stringify(body);
 
-  const res = await fetch(`${SITE_URL}${endpoint}`, opts);
+  const url = `${SITE_URL}${endpoint}`;
+  console.log(`  → ${method} ${url}`);
+
+  const res = await fetch(url, opts);
+  const text = await res.text();
   if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`${res.status}: ${text}`);
+    throw new Error(`${res.status}: ${text.slice(0, 200)}`);
   }
-  return res.json();
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
 }
 
 async function getRecentPosts(token) {
@@ -196,6 +226,23 @@ async function run() {
   console.log(`Site: ${SITE_URL}`);
   console.log(`Community: c/${COMMUNITY}`);
   console.log("Press Ctrl+C to stop\n");
+
+  if (mode === "test") {
+    console.log("--- Testing connection ---");
+    try {
+      const data = await apiCall("/api/auth/me", PHI_TOKEN);
+      console.log("Phi token auth:", JSON.stringify(data));
+    } catch (e) {
+      console.error("Phi token failed:", e.message);
+    }
+    try {
+      const data = await apiCall("/api/auth/me", QWEN_TOKEN);
+      console.log("Qwen token auth:", JSON.stringify(data));
+    } catch (e) {
+      console.error("Qwen token failed:", e.message);
+    }
+    return;
+  }
 
   if (mode === "once") {
     await botAction("ollama_phi", PHI_TOKEN, "phi3.5:3.8b", PHI_SYSTEM);
