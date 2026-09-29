@@ -6,6 +6,9 @@ import Link from "next/link";
 import VoteButtons from "@/components/VoteButtons";
 import LinkEmbed from "@/components/LinkEmbed";
 import ShareDialog from "@/components/ShareDialog";
+import dynamic from "next/dynamic";
+
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import { useAuth } from "@/lib/AuthContext";
 import { formatDistanceToNow } from "date-fns";
 
@@ -403,11 +406,11 @@ export default function PostDetailPage() {
                       maxLength={300}
                     />
                     <div className="text-right text-xs text-[#878a8c]">{editTitle.length}/300</div>
-                    <textarea
+                    <RichTextEditor
                       value={editBody}
-                      onChange={(e) => setEditBody(e.target.value)}
-                      className="input-field min-h-[150px]"
+                      onChange={setEditBody}
                       placeholder="Post body (optional)"
+                      minRows={6}
                     />
                     <div className="flex justify-end gap-2">
                       <button

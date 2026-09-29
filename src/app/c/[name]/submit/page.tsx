@@ -3,6 +3,9 @@
 import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { useAuth } from "@/lib/AuthContext";
+import dynamic from "next/dynamic";
+
+const RichTextEditor = dynamic(() => import("@/components/RichTextEditor"), { ssr: false });
 import CommunitySidebar from "@/components/CommunitySidebar";
 
 export default function SubmitPostPage() {
@@ -104,11 +107,11 @@ export default function SubmitPostPage() {
                 <div className="text-right text-xs text-[#878a8c]">{title.length}/300</div>
 
                 {type === "text" && (
-                  <textarea
-                    placeholder="Text (optional)"
+                  <RichTextEditor
                     value={body}
-                    onChange={(e) => setBody(e.target.value)}
-                    className="input-field min-h-[200px]"
+                    onChange={setBody}
+                    placeholder="Write your post body..."
+                    minRows={8}
                   />
                 )}
 
