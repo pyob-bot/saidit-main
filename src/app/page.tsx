@@ -1,69 +1,114 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState, useEffect } from "react";
+import PostCard from "@/components/PostCard";
+import HomeSidebar from "@/components/HomeSidebar";
+import GamesSidebar from "@/components/GamesSidebar";
+
+interface Post {
+  id: string;
+  title: string;
+  body?: string;
+  url?: string;
+  imageUrl?: string;
+  type: string;
+  upvotes: number;
+  downvotes: number;
+  commentCount: number;
+  createdAt: string;
+  author: { id: string; username: string; avatar?: string; karma: number };
+  community: { id: string; name: string; displayName: string; icon?: string };
+  userVote?: number;
+}
+
+interface Community {
+  id: string;
+  name: string;
+  displayName: string;
+  _count: { members: number };
+}
+
+export default function HomePage() {
+  const [posts, setPosts] = useState<Post[]>([]);
+  const [topCommunities, setTopCommunities] = useState<Community[]>([]);
+  const [sort, setSort] = useState("hot");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        const [postsRes, communitiesRes] = await Promise.all([
+          fetch(`/api/posts/create?sort=${sort}`),
+          fetch("/api/communities/create"),
+        ]);
+        const postsData = await postsRes.json();
+        const communitiesData = await communitiesRes.json();
+        setPosts(postsData.posts || []);
+        setTopCommunities((communitiesData.communities || []).slice(0, 5));
+      } catch (error) {
+        console.error("Failed to fetch data:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchData();
+  }, [sort]);
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert h-5 w-[100px]"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the{" "}
-            <code className="rounded bg-black/[.06] px-1.5 py-0.5 font-mono text-[0.9em] dark:bg-white/[.08]">
-              page.tsx
-            </code>{" "}
-            file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+    <div className="max-w-[1200px] mx-auto px-4 py-4">
+      <div className="flex gap-6 items-start">
+        <div className="flex-1 min-w-0">
+          <div className="bg-white border border-[#ccc] rounded-sm p-3 mb-3">
+            <div className="flex items-center gap-2">
+              {["hot", "new", "top", "controversial"].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setSort(s)}
+                  className={`px-3 py-1.5 text-sm font-bold rounded-full transition-colors ${
+                    sort === s
+                      ? "bg-[#f0f0f0] text-[#1a1a1b]"
+                      : "text-[#878a8c] hover:bg-[#f8f9fa]"
+                  }`}
+                >
+                  {s.charAt(0).toUpperCase() + s.slice(1)}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {loading ? (
+            <div className="space-y-3">
+              {[1, 2, 3, 4, 5].map((i) => (
+                <div key={i} className="bg-white border border-[#ccc] rounded-sm p-4 animate-pulse">
+                  <div className="h-3 bg-gray-200 rounded w-1/3 mb-2" />
+                  <div className="h-5 bg-gray-200 rounded w-2/3 mb-2" />
+                  <div className="h-3 bg-gray-200 rounded w-1/2" />
+                </div>
+              ))}
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="bg-white border border-[#ccc] rounded-sm p-12 text-center">
+              <div className="text-4xl mb-4">📭</div>
+              <h3 className="text-lg font-medium text-[#1a1a1b] mb-2">No posts yet</h3>
+              <p className="text-sm text-[#878a8c]">
+                Be the first to post something! Create a community and start sharing.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {posts.map((post) => (
+                <PostCard key={post.id} post={post} />
+              ))}
+            </div>
+          )}
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert h-[14px] w-4"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={14}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        <div className="hidden lg:block w-[312px] shrink-0 space-y-3">
+          <HomeSidebar topCommunities={topCommunities} />
+          <GamesSidebar />
         </div>
-      </main>
+      </div>
     </div>
   );
 }

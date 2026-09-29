@@ -1,0 +1,257 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model User {
+  id            String    @id @default(uuid())
+  username      String    @unique
+  email         String    @unique
+  password      String
+  displayName   String?
+  avatar        String?
+  bio           String?
+  role          String    @default("user") // user, mod, admin
+  karma         Int       @default(0)
+  inviteCode    String?
+  invitedBy     String?
+  trustScore    Int       @default(50) // 0-100, higher = more trusted
+  cooldownUntil DateTime? // if set, user must wait before posting
+  flaggedCount  Int       @default(0) // times content was removed
+  trustNote     String?   // reason for low trust
+  isBanned      Boolean   @default(false)
+  banReason     String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  posts         Post[]
+  comments      Comment[]
+  votes         Vote[]
+  communities   CommunityMember[]
+  modCommunities Community[] @relation("Moderators")
+  createdCommunities Community[] @relation("Creator")
+  sentInvites   Invite[]   @relation("Inviter")
+  receivedInvites Invite[] @relation("Invitee")
+  notifications Notification[]
+  reports       Report[]
+  savedPosts    SavedPost[]
+  screenings    ScreeningLog[]
+  settings      UserSettings?
+}
+
+model Community {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  displayName String
+  description String?
+  icon        String?
+  banner      String?
+  isPrivate   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  creatorId   String
+  creator     User      @relation("Creator", fields: [creatorId], references: [id])
+
+  posts       Post[]
+  members     CommunityMember[]
+  moderators  User[]    @relation("Moderators")
+  rules       CommunityRule[]
+}
+
+model CommunityMember {
+  id          String    @id @default(uuid())
+  role        String    @default("member") // member, mod, admin
+  joinedAt    DateTime  @default(now())
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id])
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id])
+
+  @@unique([userId, communityId])
+}
+
+model CommunityRule {
+  id          String    @id @default(uuid())
+  title       String
+  description String
+  order       Int       @default(0)
+  createdAt   DateTime  @default(now())
+
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+}
+
+model Post {
+  id            String    @id @default(uuid())
+  title         String
+  body          String?
+  url           String?
+  imageUrl      String?
+  type          String    @default("text") // text, link, image
+  upvotes       Int       @default(0)
+  downvotes     Int       @default(0)
+  commentCount  Int       @default(0)
+  isPinned      Boolean   @default(false)
+  isLocked      Boolean   @default(false)
+  isRemoved     Boolean   @default(false)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  authorId      String
+  author        User      @relation(fields: [authorId], references: [id])
+  communityId   String
+  community     Community @relation(fields: [communityId], references: [id])
+
+  comments      Comment[]
+  votes         Vote[]
+  savedPosts    SavedPost[]
+  reports       Report[]
+}
+
+model Comment {
+  id          String    @id @default(uuid())
+  body        String
+  upvotes     Int       @default(0)
+  downvotes   Int       @default(0)
+  depth       Int       @default(0)
+  isRemoved   Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  postId      String
+  post        Post      @relation(fields: [postId], references: [id])
+  parentId    String?
+  parent      Comment?  @relation("CommentReplies", fields: [parentId], references: [id])
+  replies     Comment[] @relation("CommentReplies")
+  votes       Vote[]
+  reports     Report[]
+}
+
+model Vote {
+  id        String @id @default(uuid())
+  value     Int    // 1 or -1
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User   @relation(fields: [userId], references: [id])
+  postId    String?
+  post      Post?  @relation(fields: [postId], references: [id])
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, postId])
+  @@unique([userId, commentId])
+}
+
+model Invite {
+  id        String   @id @default(uuid())
+  code      String   @unique
+  isUsed    Boolean  @default(false)
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  inviterId  String
+  inviter   User     @relation("Inviter", fields: [inviterId], references: [id])
+  inviteeId String?
+  invitee   User?    @relation("Invitee", fields: [inviteeId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  type      String   // reply, mention, mod_action
+  title     String
+  message   String
+  isRead    Boolean  @default(false)
+  link      String?
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model Report {
+  id        String   @id @default(uuid())
+  reason    String
+  details   String?
+  status    String   @default("pending") // pending, reviewed, resolved
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  postId    String?
+  post      Post?    @relation(fields: [postId], references: [id])
+  commentId String?
+  comment   Comment? @relation(fields: [commentId], references: [id])
+}
+
+model SavedPost {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  postId    String
+  post      Post     @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId])
+}
+
+model ScreeningLog {
+  id          String   @id @default(uuid())
+  contentType String   // post, comment
+  contentId   String
+  action      String   // delayed, flagged, removed
+  reason      String
+  trustBefore Int
+  trustAfter  Int
+  autoMod     Boolean  @default(true) // true = auto-filtered, false = mod action
+  createdAt   DateTime @default(now())
+
+  userId      String
+  user        User     @relation(fields: [userId], references: [id])
+}
+
+model ContentFilter {
+  id          String   @id @default(uuid())
+  pattern     String   // regex or keyword
+  type        String   // keyword, regex, domain
+  action      String   // flag, delay, remove
+  severity    Int      @default(1) // 1=low, 2=medium, 3=high
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model UserSettings {
+  id        String  @id @default(uuid())
+  userId    String  @unique
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  notifReplies       Boolean @default(true)
+  notifMentions      Boolean @default(true)
+  notifUpvotes       Boolean @default(false)
+  notifMessages      Boolean @default(true)
+  notifCommunity     Boolean @default(false)
+  notifGames         Boolean @default(true)
+
+  themeMode          String  @default("light")
+  accentColor        String  @default("#ff4500")
+  compactMode        Boolean @default(false)
+  showThumbnails     Boolean @default(true)
+  autoplayMedia      Boolean @default(true)
+
+  showOnlineStatus   Boolean @default(true)
+  showKarma          Boolean @default(true)
+  showPostHistory    Boolean @default(true)
+  allowFollowers     Boolean @default(true)
+  safeBrowsing       Boolean @default(false)
+}

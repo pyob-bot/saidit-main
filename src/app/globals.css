@@ -1,26 +1,119 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --accent-color: #ff4500;
+  --accent-hover: #e03d00;
+  --bg-primary: #dae0e6;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f6f7f8;
+  --bg-hover: #f8f9fa;
+  --text-primary: #1a1a1b;
+  --text-secondary: #878a8c;
+  --text-muted: #787c7e;
+  --border-color: #ccc;
+  --border-light: #edeff1;
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+html.dark {
+  --bg-primary: #030303;
+  --bg-secondary: #1a1a1b;
+  --bg-tertiary: #272729;
+  --bg-hover: #2d2d2e;
+  --text-primary: #d7dadc;
+  --text-secondary: #818384;
+  --text-muted: #818384;
+  --border-color: #343536;
+  --border-light: #343536;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
+* { box-sizing: border-box; }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  margin: 0; padding: 0;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  transition: background-color 0.2s, color 0.2s;
 }
+
+a { color: inherit; }
+
+/* Header */
+header, .sticky { background-color: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
+
+/* Cards & containers */
+.sidebar-card, .bg-white, [class*="bg-white"] {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+.post-card { background: var(--bg-secondary) !important; border-color: var(--border-color) !important; }
+.post-card:hover { border-color: var(--text-secondary) !important; }
+
+/* Text colors */
+.text-\[\#1a1a1b\], .text-\[\#222\], .text-\[\#4a4a4a\] { color: var(--text-primary) !important; }
+.text-\[\#878a8c\], .text-\[\#787c7e\] { color: var(--text-secondary) !important; }
+.font-bold { color: var(--text-primary); }
+.font-medium { color: var(--text-primary); }
+h1, h2, h3, h4, h5, h6 { color: var(--text-primary); }
+p, span, div { color: inherit; }
+
+/* Links */
+a:hover { color: var(--accent-color) !important; }
+.font-bold.text-\[\#1a1a1b\] { color: var(--text-primary) !important; }
+
+/* Inputs */
+.input-field, input[type="text"], input[type="email"], input[type="password"], input[type="url"], textarea, select {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+  color: var(--text-primary) !important;
+}
+.input-field:focus, input:focus, textarea:focus, select:focus {
+  border-color: #0079d3 !important;
+  outline: none;
+}
+.input-field::placeholder, input::placeholder, textarea::placeholder { color: var(--text-secondary) !important; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 8px; }
+::-webkit-scrollbar-track { background: var(--bg-tertiary); }
+::-webkit-scrollbar-thumb { background: var(--text-secondary); border-radius: 4px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+/* Sidebar headers */
+.sidebar-card-header { color: white !important; }
+
+/* Vote buttons */
+.vote-button-up:hover { color: var(--accent-color) !important; }
+.vote-button-down:hover { color: #7193ff !important; }
+
+/* Buttons */
+.btn-primary { background-color: var(--accent-color); color: white; }
+.btn-primary:hover { background-color: var(--accent-hover); }
+.btn-secondary { color: var(--accent-color); border-color: var(--accent-color); }
+.btn-secondary:hover { background-color: color-mix(in srgb, var(--accent-color) 10%, transparent); }
+
+/* Dropdown menus */
+[class*="bg-white"][class*="border"][class*="rounded-md"] {
+  background-color: var(--bg-secondary) !important;
+  border-color: var(--border-color) !important;
+}
+
+/* Line between sections */
+.border-t, .border-b, [class*="border-t"], [class*="border-b"] { border-color: var(--border-color) !important; }
+
+/* Sort buttons active */
+button[class*="bg-"][class*="rounded-full"] {
+  color: var(--text-primary);
+}
+
+/* Tab content area */
+main { background-color: var(--bg-primary) !important; }
+
+/* Community page header */
+[class*="bg-"][class*="border-b"] { border-color: var(--border-color) !important; }
+
+/* Notification items */
+.bg-\[\#f0f7ff\] { background-color: var(--bg-tertiary) !important; }
+
+/* Placeholder loading */
+.bg-gray-200 { background-color: var(--bg-tertiary) !important; }
