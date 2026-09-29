@@ -97,7 +97,11 @@ export default function PostCard({ post, showCommunity = true, compact = false, 
   const handleSave = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/posts/${post.id}/save`, { method: "POST" });
+      const res = await fetch("/api/saved", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ postId: post.id }),
+      });
       const data = await res.json();
       setIsSaved(data.saved);
     } catch (error) {
