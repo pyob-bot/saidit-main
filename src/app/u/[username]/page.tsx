@@ -48,8 +48,9 @@ export default function UserProfilePage() {
   const [userData, setUserData] = useState<UserData | null>(null);
   const [recentPosts, setRecentPosts] = useState<UserPost[]>([]);
   const [recentComments, setRecentComments] = useState<UserComment[]>([]);
+  const [savedPosts, setSavedPosts] = useState<{ id: string; post: { id: string; title: string; community: { name: string }; author: { username: string } } }[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"posts" | "comments">("posts");
+  const [activeTab, setActiveTab] = useState<"posts" | "comments" | "saved">("posts");
 
   const fetchUser = useCallback(async () => {
     try {
@@ -69,6 +70,10 @@ export default function UserProfilePage() {
 
   useEffect(() => {
     fetchUser();
+    fetch("/api/saved")
+      .then((res) => res.json())
+      .then((data) => setSavedPosts(data.savedPosts || []))
+      .catch(() => {});
   }, [fetchUser]);
 
   if (loading) {
@@ -144,7 +149,7 @@ export default function UserProfilePage() {
           <div className="mt-3">
             <div className="bg-white border border-[#ccc] rounded-sm">
               <div className="flex border-b border-[#ccc]">
-                {(["posts", "comments"] as const).map((tab) => (
+                {(["posts", "comments", "saved"] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActiveTab(tab)}
@@ -198,7 +203,40 @@ export default function UserProfilePage() {
                             <div className="text-sm text-[#1a1a1b] line-clamp-2">{comment.body}</div>
                             <div className="flex items-center gap-3 mt-1 text-xs text-[#878a8c]">
                               <span>{comment.upvotes - comment.downvotes} points</span>
-                              <span>{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
+                               <span>{formatDistanceToNow(new Date(comment.createdAt), { addSuffix: true })}</span>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                )}
+                {activeTab === "saved" && (
+                  <>
+                    {savedPosts.length === 0 ? (
+                      <div className="text-center py-8">
+                        <svg className="w-12 h-12 text-[#878a8c] mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                        </svg>
+                        <p className="text-sm text-[#878a8c]">No saved posts yet.</p>
+                        <p className="text-xs text-[#878a8c] mt-1">Click the bookmark icon on any post to save it here.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-2">
+                        {savedPosts.map((sp) => (
+                          <Link
+                            key={sp.id}
+                            href={`/post/${sp.post.id}`}
+                            className="flex items-center gap-3 p-3 border border-[#edeff1] rounded hover:bg-[#f8f9fa] transition-colors"
+                          >
+                            <svg className="w-5 h-5 text-[#ff4500] shrink-0" fill="currentColor" viewBox="0 0 24 24">
+                              <path d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
+                            </svg>
+                            <div className="min-w-0 flex-1">
+                              <div className="text-sm font-medium text-[#1a1a1b] truncate">{sp.post.title}</div>
+                              <div className="text-xs text-[#878a8c]">
+                                c/{sp.post.community.name} · by u/{sp.post.author.username}
+                              </div>
                             </div>
                           </Link>
                         ))}
