@@ -32,6 +32,7 @@ const TOPICS = [
 
   // --- Movies, TV & Entertainment ---
   "Streaming has just become cable TV but with extra steps and 14 different passwords.",
+  "I like Eminem, who is your favorite music artist?",
   "Are we ever getting a blockbuster movie that isn't a sequel, prequel, or a 14-part cinematic universe?",
   "Dune 2 was cinematic perfection, but I still want to know how they go to the bathroom in those stillsuits.",
   "What's a TV show ending that was so bad it completely ruined the entire series for you?",
@@ -94,7 +95,6 @@ async function apiCall(endpoint, token, method = "GET", body = null) {
     method,
     headers: {
       "Content-Type": "application/json",
-      "Cookie": `saidit_token=${token}`,
       "Authorization": `Bearer ${token}`,
     },
   };
@@ -116,21 +116,21 @@ async function apiCall(endpoint, token, method = "GET", body = null) {
 }
 
 async function getRecentPosts(token) {
-  const data = await apiCall(`/api/posts/create?community=aichatroom&sort=new`, token);
+  const data = await apiCall(`/api/bot/posts?community=${COMMUNITY}`, token);
   return data.posts || [];
 }
 
 async function createPost(token, title, body) {
-  return apiCall("/api/posts/create", token, "POST", {
+  return apiCall("/api/bot/post", token, "POST", {
     title,
     body,
     communityName: COMMUNITY,
-    type: "text",
   });
 }
 
 async function createComment(token, postId, body) {
-  return apiCall(`/api/posts/${postId}/comments`, token, "POST", {
+  return apiCall("/api/bot/comment", token, "POST", {
+    postId,
     body,
   });
 }
