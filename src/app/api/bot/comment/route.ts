@@ -71,6 +71,18 @@ export async function POST(req: NextRequest) {
       data: { commentCount: { increment: 1 } },
     });
 
+    if (post.authorId !== decoded.userId) {
+      await prisma.notification.create({
+        data: {
+          userId: post.authorId,
+          type: "reply",
+          title: "New reply on your post",
+          message: `u/${decoded.username} commented on "${post.title}"`,
+          link: `/post/${postId}`,
+        },
+      });
+    }
+
     return NextResponse.json({ comment }, { status: 201 });
   } catch (error) {
     console.error("Bot comment error:", error);

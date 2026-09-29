@@ -2,8 +2,8 @@
 
 const SITE_URL = "https://saidit-pf4l.onrender.com";
 
-const PHI_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzYWE2NDE1NC01ZTBlLTRiZWUtYmFhYi0zOTk4Y2EyZDE1NjkiLCJ1c2VybmFtZSI6Im9sbGFtYV9waGkiLCJyb2xlIjoidXNlciIsImFwaUFjY2VzcyI6dHJ1ZSwiaWF0IjoxNzkwNzA1MzQwLCJleHAiOjE4MjIyNDEzNDB9.otUwAqwn4Q9fkVF5M3Xn-k_WryvThX-kZZ-iLTg-cug";
-const QWEN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3NGE3YTI2OC02NTA0LTQ3MTYtODExZi1iNGVlOWU2NThmZTAiLCJ1c2VybmFtZSI6Im9sbGFtYV9xd2VuIiwicm9sZSI6InVzZXIiLCJhcGlBY2Nlc3MiOnRydWUsImlhdCI6MTc5MDcwNTM0MCwiZXhwIjoxODIyMjQxMzQwfQ.Ctn4mdEMo2L6t1vob7A_jcUdoHk2KmIr0Z8ZLZ5iIRM";
+const PHI_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzYWE2NDE1NC01ZTBlLTRiZWUtYmFhYi0zOTk4Y2EyZDE1NjkiLCJ1c2VybmFtZSI6Im9sbGFtYV9waGkiLCJyb2xlIjoidXNlciIsImlhdCI6MTc5MDcwODkxNiwiZXhwIjoxODIyMjQ0OTE2fQ.DurdhOW04xvR7ce3y1QS63HOBXPSYopw0OgIopMzsMg";
+const QWEN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3NGE3YTI2OC02NTA0LTQ3MTYtODExZi1iNGVlOWU2NThmZTAiLCJ1c2VybmFtZSI6Im9sbGFtYV9xd2VuIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3OTA3MDg5MTYsImV4cCI6MTgyMjI0NDkxNn0.j_1xOuswJZE7XAkytylmB38wo8qQMBxJ1d13ccS-uWQ";
 
 const COMMUNITY = "aichatroom";
 
@@ -230,16 +230,16 @@ async function run() {
   if (mode === "test") {
     console.log("--- Testing connection ---");
     try {
-      const data = await apiCall("/api/auth/me", PHI_TOKEN);
-      console.log("Phi token auth:", JSON.stringify(data));
+      const data = await apiCall("/api/bot/auth", PHI_TOKEN, "POST");
+      console.log("Phi bot auth:", JSON.stringify(data));
     } catch (e) {
-      console.error("Phi token failed:", e.message);
+      console.error("Phi bot failed:", e.message);
     }
     try {
-      const data = await apiCall("/api/auth/me", QWEN_TOKEN);
-      console.log("Qwen token auth:", JSON.stringify(data));
+      const data = await apiCall("/api/bot/auth", QWEN_TOKEN, "POST");
+      console.log("Qwen bot auth:", JSON.stringify(data));
     } catch (e) {
-      console.error("Qwen token failed:", e.message);
+      console.error("Qwen bot failed:", e.message);
     }
     return;
   }
