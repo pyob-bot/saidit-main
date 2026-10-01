@@ -10,29 +10,33 @@ const DAILY_LIMIT = 5;
 const NEW_POST_THRESHOLD = 25;
 const WAIT_BETWEEN_BOTS_MS = 2 * 60 * 1000;
 
-const PHI_SYSTEM = `You are Phi, a thoughtful AI. You're chatting in a forum called c/aichatroom on Saidit with Qwen (another AI) and admin (a human).
+const PHI_SYSTEM = `You are Llama. You are chatting on a forum called c/aichatroom on Saidit.
 
-RULES:
-- Write short replies (1-3 sentences max)
-- Reply DIRECTLY to the person you're responding to - start with their name
-- Have real conversations - ask follow-up questions, agree, disagree
-- Don't repeat things you've already said in this thread
-- Answer questions people ask you
-- Don't be preachy or lecture
-- NEVER write both Phi AND Qwen responses - you only write YOUR response
-- NEVER use quotes around your text`;
+CRITICAL RULES - VIOLATION IS UNACCEPTABLE:
+1. Write ONLY your reply. Nothing else. No labels, no descriptions, no summaries.
+2. Do NOT write "[Llama]:" or "[ollama_phi]:" at the start.
+3. Do NOT write "In Llama's response..." or "Llama agrees..." or any third-person description.
+4. Do NOT include the original post text in your reply.
+5. Do NOT include instructions or prompts about creating posts.
+6. Start directly with your response text. First word should be what you want to say.
+7. Keep replies short: 1-3 sentences.
+8. Address the person you're replying to by name.
+9. Have natural conversations - ask questions, agree, disagree, joke.
+10. NEVER use quotes around your text.`;
 
-const QWEN_SYSTEM = `You are Qwen, a thoughtful AI. You're chatting in a forum called c/aichatroom on Saidit with Phi (another AI) and admin (a human).
+const QWEN_SYSTEM = `You are Qwen. You are chatting on a forum called c/aichatroom on Saidit.
 
-RULES:
-- Write short replies (1-3 sentences max)
-- Reply DIRECTLY to the person you're responding to - start with their name
-- Have real conversations - push back, agree, ask questions
-- Don't repeat things you've already said in this thread
-- Answer questions people ask you
-- Don't be preachy or lecture
-- NEVER write both Phi AND Qwen responses - you only write YOUR response
-- NEVER use quotes around your text`;
+CRITICAL RULES - VIOLATION IS UNACCEPTABLE:
+1. Write ONLY your reply. Nothing else. No labels, no descriptions, no summaries.
+2. Do NOT write "[Qwen]:" or "[ollama_qwen]:" at the start.
+3. Do NOT write "In Qwen's response..." or any third-person description.
+4. Do NOT include the original post text in your reply.
+5. Start directly with your response text. First word should be what you want to say.
+6. Keep replies short: 1-3 sentences.
+7. Address the person you're replying to by name.
+8. Have natural conversations - push back, agree, ask questions.
+9. Be slightly more opinionated than Phi.
+10. NEVER use quotes around your text.`;
 
 const TOPICS = [
   "What's the most underrated programming language right now?",
@@ -122,7 +126,27 @@ async function generateOllamaResponse(model, systemPrompt, conversationMessages)
 }
 
 function clean(text) {
-  return text.replace(/^["']|["']$/g, "").replace(/\n/g, " ").trim().slice(0, 500);
+  let result = text.replace(/^["']|["']$/g, "").replace(/\n/g, " ").trim();
+
+  // Strip meta-commentary patterns
+  result = result.replace(/^In (this|llamas?|phis?|my) (response|reply|continuation)[,:]?\s*/gi, "");
+  result = result.replace(/^(Llama|Phi)[:\s]+(agrees?|acknowledges?|emphasizes?|suggests?|builds?)/gi, "");
+  result = result.replace(/^\[ollama_phi[^\]]*\]:?\s*/gi, "");
+  result = result.replace(/^\[ollama_qwen[^\]]*\]:?\s*/gi, "");
+  result = result.replace(/^\[Llama\]:?\s*/gi, "");
+  result = result.replace(/^\[Phi\]:?\s*/gi, "");
+  result = result.replace(/^\[Qwen\]:?\s*/gi, "");
+  result = result.replace(/---.*$/g, "");
+  result = result.replace(/In this (response|reply),/gi, "");
+  result = result.replace(/Post title:.*$/gi, "");
+  result = result.replace(/Post body:.*$/gi, "");
+  result = result.replace(/\(as ollama_\w+\)/gi, "");
+
+  result = result.trim();
+  if (result.length > 0) {
+    result = result[0].toUpperCase() + result.slice(1);
+  }
+  return result.slice(0, 500);
 }
 
 function countTotalComments(post) {
@@ -311,7 +335,7 @@ async function run() {
     console.log(`\n--- Round ${round} at ${new Date().toLocaleTimeString()} ---`);
 
     try {
-      await botTurn("ollama_phi", PHI_TOKEN, "phi3.5:3.8b", PHI_SYSTEM);
+      await botTurn("ollama_phi", PHI_TOKEN, "llama3.2:3b", PHI_SYSTEM);
     } catch (e) { console.error("[phi] Error:", e.message); }
 
     console.log(`Waiting 2 minutes for Qwen...`);
