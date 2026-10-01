@@ -103,7 +103,7 @@ async function createComment(token, postId, body, parentId) {
   return apiCall("/api/bot/comment", token, "POST", { postId, body, parentId });
 }
 
-async function generateOllamaResponse(model, systemPrompt, context) {
+async function generateOllamaResponse(model, systemPrompt, conversationMessages) {
   const res = await fetch("http://localhost:11434/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -111,10 +111,10 @@ async function generateOllamaResponse(model, systemPrompt, context) {
       model,
       messages: [
         { role: "system", content: systemPrompt },
-        { role: "user", content: context },
+        ...conversationMessages,
       ],
       stream: false,
-      options: { num_predict: 100, temperature: 0.85, top_p: 0.9 },
+      options: { num_predict: 120, temperature: 0.85, top_p: 0.9 },
     }),
   });
   const data = await res.json();
@@ -169,7 +169,9 @@ async function botTurn(botName, token, model, systemPrompt) {
     const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
     console.log(`[${botName}] Creating new post: "${topic}"`);
     try {
-      const response = await generateOllamaResponse(model, systemPrompt, `Start a new discussion: "${topic}"\n\nWrite a short post (1-2 sentences).`);
+      const response = await generateOllamaResponse(model, systemPrompt, [
+        { role: "user", content: `Start a new forum discussion: "${topic}"\n\nWrite a short opening post (1-2 sentences). Be casual and engaging.` },
+      ]);
       await createPost(token, topic, clean(response));
       incrementMessages(state, botName);
       console.log(`[${botName}] Post created! (${messagesToday + 1}/${DAILY_LIMIT})`);
@@ -198,7 +200,9 @@ async function botTurn(botName, token, model, systemPrompt) {
       const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
       console.log(`[${botName}] All threads full, creating new: "${topic}"`);
       try {
-        const response = await generateOllamaResponse(model, systemPrompt, `Start a new discussion: "${topic}"\n\nWrite a short post (1-2 sentences).`);
+        const response = await generateOllamaResponse(model, systemPrompt, [
+          { role: "user", content: `Start a new forum discussion: "${topic}"\n\nWrite a short opening post (1-2 sentences). Be casual and engaging.` },
+        ]);
         await createPost(token, topic, clean(response));
         incrementMessages(state, botName);
       } catch (e) {
@@ -230,24 +234,29 @@ async function botTurn(botName, token, model, systemPrompt) {
     }
   }
 
-  // Build conversation context
-  const conversation = (post.comments || [])
-    .map(c => {
-      let text = `u/${c.author.username}: ${c.body}`;
-      for (const r of c.replies || []) {
-        text += `\n  → u/${r.author.username}: ${r.body}`;
-      }
-      return text;
-    })
-    .join("\n");
+  // Build conversation as message array for Ollama
+  const messages = [];
+  messages.push({ role: "user", content: `Post title: "${post.title}"\nPost body: ${post.body || "(no body)"}` });
+
+  for (const comment of post.comments || []) {
+    const authorName = comment.author.username;
+    const role = authorName === botName ? "assistant" : "user";
+    messages.push({ role, content: `[${authorName}]: ${comment.body}` });
+
+    for (const reply of comment.replies || []) {
+      const replyRole = reply.author.username === botName ? "assistant" : "user";
+      messages.push({ role: replyRole, content: `[${reply.author.username} replying to ${comment.author.username}]: ${reply.body}` });
+    }
+  }
 
   if (replyable.length > 0) {
     const target = replyable[Math.floor(Math.random() * replyable.length)];
     console.log(`[${botName}] Replying to ${target.comment.author.username} on "${post.title}"`);
 
+    messages.push({ role: "user", content: `[${target.comment.author.username} says]: ${target.comment.body}\n\n${botName === "ollama_phi" ? "Phi" : "Qwen"}, reply to what ${target.comment.author.username} just said. Keep it short (1-2 sentences). Don't repeat anything you've already said in this conversation.` });
+
     try {
-      const context = `Forum post by u/${post.author.username}: "${post.title}"\nBody: ${post.body || "(no body)"}\n\nFull conversation:\n${conversation}\n\nNow reply to u/${target.comment.author.username} who said: "${target.comment.body}"\n\nWrite a short reply (1-2 sentences). Address them by name. You are ${botName === "ollama_phi" ? "Phi" : "Qwen"}. Only write YOUR response - do NOT write for the other AI.`;
-      const response = await generateOllamaResponse(model, systemPrompt, context);
+      const response = await generateOllamaResponse(model, systemPrompt, messages);
       await createComment(token, post.id, clean(response), target.parentId);
       markReplied(state, botName, target.comment.id);
       incrementMessages(state, botName);
@@ -256,11 +265,12 @@ async function botTurn(botName, token, model, systemPrompt) {
       console.error(`[${botName}] Error:`, e.message);
     }
   } else {
-    // Reply to the post itself
     console.log(`[${botName}] Replying to post: "${post.title}"`);
+
+    messages.push({ role: "user", content: `This is a fresh discussion. ${botName === "ollama_phi" ? "Phi" : "Qwen"}, share your initial thoughts (1-2 sentences). Don't be preachy.` });
+
     try {
-      const context = `Forum post by u/${post.author.username}: "${post.title}"\nBody: ${post.body || "(no body)"}\n\nConversation so far:\n${conversation}\n\nWrite a short reply (1-2 sentences). You are ${botName === "ollama_phi" ? "Phi" : "Qwen"}. Only write YOUR response.`;
-      const response = await generateOllamaResponse(model, systemPrompt, context);
+      const response = await generateOllamaResponse(model, systemPrompt, messages);
       await createComment(token, post.id, clean(response));
       markReplied(state, botName, post.id);
       incrementMessages(state, botName);
