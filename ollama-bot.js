@@ -6,37 +6,34 @@ const PHI_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiIzYWE2NDE1
 const QWEN_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VySWQiOiI3NGE3YTI2OC02NTA0LTQ3MTYtODExZi1iNGVlOWU2NThmZTAiLCJ1c2VybmFtZSI6Im9sbGFtYV9xd2VuIiwicm9sZSI6InVzZXIiLCJpYXQiOjE3OTA3MDg5MTYsImV4cCI6MTgyMjI0NDkxNn0.j_1xOuswJZE7XAkytylmB38wo8qQMBxJ1d13ccS-uWQ";
 
 const COMMUNITY = "aichatroom";
-const DAILY_LIMIT = 5;
-const NEW_POST_THRESHOLD = 25;
-const WAIT_BETWEEN_BOTS_MS = 2 * 60 * 1000;
+const SESSION_MINUTES = 10;
+const DAILY_LIMIT = 500;
 
-const PHI_SYSTEM = `You are Llama. You are chatting on a forum called c/aichatroom on Saidit.
+const PHI_SYSTEM = `You are Llama, a curious and engaged forum user on c/aichatroom on Saidit.
 
-CRITICAL RULES - VIOLATION IS UNACCEPTABLE:
-1. Write ONLY your reply. Nothing else. No labels, no descriptions, no summaries.
-2. Do NOT write "[Llama]:" or "[ollama_phi]:" at the start.
-3. Do NOT write "In Llama's response..." or "Llama agrees..." or any third-person description.
-4. Do NOT include the original post text in your reply.
-5. Do NOT include instructions or prompts about creating posts.
-6. Start directly with your response text. First word should be what you want to say.
-7. Keep replies short: 1-3 sentences.
-8. Address the person you're replying to by name.
-9. Have natural conversations - ask questions, agree, disagree, joke.
-10. NEVER use quotes around your text.`;
+You are chatting with Qwen (another AI) and admin (a human).
 
-const QWEN_SYSTEM = `You are Qwen. You are chatting on a forum called c/aichatroom on Saidit.
+RULES:
+- Write ONLY your response. No labels, no descriptions, no summaries.
+- Start directly with what you want to say.
+- Keep replies to 1-3 sentences.
+- Have real conversations - ask follow-ups, share opinions, joke, disagree.
+- You can also create new discussion posts about random topics.
+- Never use quotes around your text.
+- Talk like a real person on a forum.`;
 
-CRITICAL RULES - VIOLATION IS UNACCEPTABLE:
-1. Write ONLY your reply. Nothing else. No labels, no descriptions, no summaries.
-2. Do NOT write "[Qwen]:" or "[ollama_qwen]:" at the start.
-3. Do NOT write "In Qwen's response..." or any third-person description.
-4. Do NOT include the original post text in your reply.
-5. Start directly with your response text. First word should be what you want to say.
-6. Keep replies short: 1-3 sentences.
-7. Address the person you're replying to by name.
-8. Have natural conversations - push back, agree, ask questions.
-9. Be slightly more opinionated than Phi.
-10. NEVER use quotes around your text.`;
+const QWEN_SYSTEM = `You are Qwen, a thoughtful and slightly opinionated forum user on c/aichatroom on Saidit.
+
+You are chatting with Llama (another AI) and admin (a human).
+
+RULES:
+- Write ONLY your response. No labels, no descriptions, no summaries.
+- Start directly with what you want to say.
+- Keep replies to 1-3 sentences.
+- Have real conversations - push back, agree, ask questions, share hot takes.
+- You can also create new discussion posts about random topics.
+- Never use quotes around your text.
+- Talk like a real person on a forum.`;
 
 const TOPICS = [
   "What's the most underrated programming language right now?",
@@ -57,6 +54,18 @@ const TOPICS = [
   "What's the last thing that made you laugh?",
   "Do you think social media is worth it?",
   "What's your setup like at home?",
+  "What's your favorite YouTube channel?",
+  "What's the best thing you've ever built?",
+  "What's a topic you could talk about for hours?",
+  "Best book you've read this year?",
+  "What's your unpopular food opinion?",
+  "If you could have any superpower, what would it be?",
+  "What's the coolest thing you've seen on the internet?",
+  "What do you think about space exploration?",
+  "Favorite programming framework and why?",
+  "What's the best advice you've ever received?",
+  "What's your morning routine like?",
+  "If you could meet any historical figure, who?",
 ];
 
 const fs = require("fs");
@@ -69,14 +78,6 @@ function getMessagesToday(state, botName) { return state[`${botName}_${getTodayK
 function incrementMessages(state, botName) {
   const key = `${botName}_${getTodayKey()}`;
   state[key] = (state[key] || 0) + 1;
-  saveState(state);
-}
-function getRepliedTo(state, botName) { return state[`${botName}_replied`] || []; }
-function markReplied(state, botName, id) {
-  const key = `${botName}_replied`;
-  if (!state[key]) state[key] = [];
-  if (!state[key].includes(id)) state[key].push(id);
-  if (state[key].length > 300) state[key] = state[key].slice(-150);
   saveState(state);
 }
 
@@ -107,18 +108,15 @@ async function createComment(token, postId, body, parentId) {
   return apiCall("/api/bot/comment", token, "POST", { postId, body, parentId });
 }
 
-async function generateOllamaResponse(model, systemPrompt, conversationMessages) {
+async function generateOllamaResponse(model, systemPrompt, messages) {
   const res = await fetch("http://localhost:11434/api/chat", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       model,
-      messages: [
-        { role: "system", content: systemPrompt },
-        ...conversationMessages,
-      ],
+      messages: [{ role: "system", content: systemPrompt }, ...messages],
       stream: false,
-      options: { num_predict: 120, temperature: 0.85, top_p: 0.9 },
+      options: { num_predict: 100, temperature: 0.9, top_p: 0.95 },
     }),
   });
   const data = await res.json();
@@ -127,182 +125,102 @@ async function generateOllamaResponse(model, systemPrompt, conversationMessages)
 
 function clean(text) {
   let result = text.replace(/^["']|["']$/g, "").replace(/\n/g, " ").trim();
-
-  // Strip meta-commentary patterns
-  result = result.replace(/^In (this|llamas?|phis?|my) (response|reply|continuation)[,:]?\s*/gi, "");
-  result = result.replace(/^(Llama|Phi)[:\s]+(agrees?|acknowledges?|emphasizes?|suggests?|builds?)/gi, "");
-  result = result.replace(/^\[ollama_phi[^\]]*\]:?\s*/gi, "");
-  result = result.replace(/^\[ollama_qwen[^\]]*\]:?\s*/gi, "");
-  result = result.replace(/^\[Llama\]:?\s*/gi, "");
-  result = result.replace(/^\[Phi\]:?\s*/gi, "");
-  result = result.replace(/^\[Qwen\]:?\s*/gi, "");
-  result = result.replace(/---.*$/g, "");
-  result = result.replace(/In this (response|reply),/gi, "");
+  result = result.replace(/^\[(ollama_phi|ollama_qwen|Llama|Phi|Qwen)\]:?\s*/gi, "");
+  result = result.replace(/^In (this|my|llamas?|phis?) (response|reply)[,:]?\s*/gi, "");
   result = result.replace(/Post title:.*$/gi, "");
   result = result.replace(/Post body:.*$/gi, "");
-  result = result.replace(/\(as ollama_\w+\)/gi, "");
-
-  result = result.trim();
-  if (result.length > 0) {
-    result = result[0].toUpperCase() + result.slice(1);
-  }
+  result = result.replace(/^---.*$/gm, "");
   return result.slice(0, 500);
 }
 
-function countTotalComments(post) {
-  if (!post.comments) return 0;
-  let count = 0;
-  for (const c of post.comments) {
-    count += 1;
-    if (c.replies) {
-      for (const r of c.replies) {
-        count += 1;
-        if (r.replies) count += r.replies.length;
-      }
-    }
-  }
-  return count;
-}
+async function botSession(botName, token, model, systemPrompt, otherBotName) {
+  const sessionEnd = Date.now() + SESSION_MINUTES * 60 * 1000;
+  let actions = 0;
 
-async function botTurn(botName, token, model, systemPrompt) {
-  const state = loadState();
-  const messagesToday = getMessagesToday(state, botName);
+  console.log(`[${botName}] Starting ${SESSION_MINUTES}-minute session...`);
 
-  if (messagesToday >= DAILY_LIMIT) {
-    console.log(`[${botName}] Daily limit reached (${DAILY_LIMIT}/${DAILY_LIMIT}).`);
-    return;
-  }
+  while (Date.now() < sessionEnd) {
+    const state = loadState();
+    const messagesToday = getMessagesToday(state, botName);
 
-  const replied = getRepliedTo(state, botName);
-  const posts = await getRecentPosts(token);
-
-  console.log(`[${botName}] Messages today: ${messagesToday}/${DAILY_LIMIT}`);
-
-  // Check if any post has enough comments to warrant a new post
-  let allPostsFull = true;
-  for (const post of posts) {
-    const totalComments = post._count?.comments || 0;
-    if (totalComments < NEW_POST_THRESHOLD) {
-      allPostsFull = false;
+    if (messagesToday >= DAILY_LIMIT) {
+      console.log(`[${botName}] Daily limit reached (${DAILY_LIMIT}).`);
       break;
     }
-  }
 
-  // Only create new post if all posts are full AND no posts exist
-  if (posts.length === 0 || (allPostsFull && posts.length > 0 && Math.random() > 0.5)) {
-    const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
-    console.log(`[${botName}] Creating new post: "${topic}"`);
+    const roll = Math.random();
+    const posts = await getRecentPosts(token);
+
     try {
-      const response = await generateOllamaResponse(model, systemPrompt, [
-        { role: "user", content: `Start a new forum discussion: "${topic}"\n\nWrite a short opening post (1-2 sentences). Be casual and engaging.` },
-      ]);
-      await createPost(token, topic, clean(response));
-      incrementMessages(state, botName);
-      console.log(`[${botName}] Post created! (${messagesToday + 1}/${DAILY_LIMIT})`);
-    } catch (e) {
-      console.error(`[${botName}] Error:`, e.message);
-    }
-    return;
-  }
-
-  // Find posts with comments to engage with
-  const engagingPosts = [];
-  for (const post of posts) {
-    if (post.author.username === botName) continue;
-    const totalComments = post._count?.comments || 0;
-    if (totalComments > 0 && !replied.includes(post.id)) {
-      try {
-        const detail = await getPostDetail(post.id, token);
-        engagingPosts.push(detail);
-      } catch {}
-    }
-  }
-
-  // If no engaging posts, create new one (if all posts full)
-  if (engagingPosts.length === 0) {
-    if (allPostsFull) {
-      const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
-      console.log(`[${botName}] All threads full, creating new: "${topic}"`);
-      try {
+      if (posts.length === 0 || roll < 0.25) {
+        // Create new post
+        const topic = TOPICS[Math.floor(Math.random() * TOPICS.length)];
+        console.log(`[${botName}] Posting: "${topic}"`);
         const response = await generateOllamaResponse(model, systemPrompt, [
-          { role: "user", content: `Start a new forum discussion: "${topic}"\n\nWrite a short opening post (1-2 sentences). Be casual and engaging.` },
+          { role: "user", content: `Start a new forum discussion: "${topic}"\n\nWrite a short opening post (1-2 sentences). Be casual.` },
         ]);
         await createPost(token, topic, clean(response));
         incrementMessages(state, botName);
-      } catch (e) {
-        console.error(`[${botName}] Error:`, e.message);
+        actions++;
+      } else if (roll < 0.75) {
+        // Reply to a comment
+        const postsWithComments = posts.filter(p => (p._count?.comments || 0) > 0);
+        if (postsWithComments.length > 0) {
+          const post = postsWithComments[Math.floor(Math.random() * postsWithComments.length)];
+          const detail = await getPostDetail(post.id, token);
+
+          const replyable = [];
+          for (const comment of detail.comments || []) {
+            if (comment.author.username !== botName) replyable.push({ comment, parentId: comment.id });
+            for (const reply of comment.replies || []) {
+              if (reply.author.username !== botName) replyable.push({ comment: reply, parentId: comment.id });
+            }
+          }
+
+          if (replyable.length > 0) {
+            const target = replyable[Math.floor(Math.random() * replyable.length)];
+            console.log(`[${botName}] Replying to ${target.comment.author.username} on "${post.title}"`);
+
+            const messages = [{ role: "user", content: `Post: "${post.title}"\nPost body: ${post.body || "(none)"}\n\nConversation:\n${(detail.comments || []).map(c => `u/${c.author.username}: ${c.body}${(c.replies || []).map(r => `\n  → u/${r.author.username}: ${r.body}`).join("")}`).join("\n")}\n\nNow reply to ${target.comment.author.username} who said: "${target.comment.body}"\n\nWrite a short reply (1-2 sentences). Address them by name. You are ${otherBotName === "ollama_qwen" ? "Qwen" : "Llama"}.` }];
+
+            const response = await generateOllamaResponse(model, systemPrompt, messages);
+            await createComment(token, detail.id, clean(response), target.parentId);
+            incrementMessages(state, botName);
+            actions++;
+          } else {
+            // Reply to the post itself
+            console.log(`[${botName}] Replying to post: "${post.title}"`);
+            const messages = [{ role: "user", content: `Forum post by u/${post.author.username}: "${post.title}"\nBody: ${post.body || "(none)"}\n\nWrite a short reply (1-2 sentences).` }];
+            const response = await generateOllamaResponse(model, systemPrompt, messages);
+            await createComment(token, post.id, clean(response));
+            incrementMessages(state, botName);
+            actions++;
+          }
+        }
+      } else {
+        // Reply to post directly
+        const available = posts.filter(p => p.author.username !== botName);
+        if (available.length > 0) {
+          const post = available[Math.floor(Math.random() * available.length)];
+          console.log(`[${botName}] Replying to: "${post.title}"`);
+          const messages = [{ role: "user", content: `Post by u/${post.author.username}: "${post.title}"\nBody: ${post.body || "(none)"}\n\nWrite a short reply (1-2 sentences).` }];
+          const response = await generateOllamaResponse(model, systemPrompt, messages);
+          await createComment(token, post.id, clean(response));
+          incrementMessages(state, botName);
+          actions++;
+        }
       }
-    } else {
-      console.log(`[${botName}] Waiting for discussions to fill up before posting.`);
-    }
-    return;
-  }
-
-  // Find the most active post with recent comments
-  const post = engagingPosts.sort((a, b) => {
-    const aLast = a.comments?.[0]?.createdAt || "";
-    const bLast = b.comments?.[0]?.createdAt || "";
-    return bLast.localeCompare(aLast);
-  })[0];
-
-  // Find replyable comments (by the other bot or admin, that we haven't replied to)
-  const replyable = [];
-  for (const comment of post.comments || []) {
-    if (comment.author.username !== botName && !replied.includes(comment.id)) {
-      replyable.push({ comment, parentId: comment.id });
-    }
-    for (const reply of comment.replies || []) {
-      if (reply.author.username !== botName && !replied.includes(reply.id)) {
-        replyable.push({ comment: reply, parentId: comment.id });
-      }
-    }
-  }
-
-  // Build conversation as message array for Ollama
-  const messages = [];
-  messages.push({ role: "user", content: `Post title: "${post.title}"\nPost body: ${post.body || "(no body)"}` });
-
-  for (const comment of post.comments || []) {
-    const authorName = comment.author.username;
-    const role = authorName === botName ? "assistant" : "user";
-    messages.push({ role, content: `[${authorName}]: ${comment.body}` });
-
-    for (const reply of comment.replies || []) {
-      const replyRole = reply.author.username === botName ? "assistant" : "user";
-      messages.push({ role: replyRole, content: `[${reply.author.username} replying to ${comment.author.username}]: ${reply.body}` });
-    }
-  }
-
-  if (replyable.length > 0) {
-    const target = replyable[Math.floor(Math.random() * replyable.length)];
-    console.log(`[${botName}] Replying to ${target.comment.author.username} on "${post.title}"`);
-
-    messages.push({ role: "user", content: `[${target.comment.author.username} says]: ${target.comment.body}\n\n${botName === "ollama_phi" ? "Phi" : "Qwen"}, reply to what ${target.comment.author.username} just said. Keep it short (1-2 sentences). Don't repeat anything you've already said in this conversation.` });
-
-    try {
-      const response = await generateOllamaResponse(model, systemPrompt, messages);
-      await createComment(token, post.id, clean(response), target.parentId);
-      markReplied(state, botName, target.comment.id);
-      incrementMessages(state, botName);
-      console.log(`[${botName}] Reply posted! (${messagesToday + 1}/${DAILY_LIMIT})`);
     } catch (e) {
       console.error(`[${botName}] Error:`, e.message);
     }
-  } else {
-    console.log(`[${botName}] Replying to post: "${post.title}"`);
 
-    messages.push({ role: "user", content: `This is a fresh discussion. ${botName === "ollama_phi" ? "Phi" : "Qwen"}, share your initial thoughts (1-2 sentences). Don't be preachy.` });
-
-    try {
-      const response = await generateOllamaResponse(model, systemPrompt, messages);
-      await createComment(token, post.id, clean(response));
-      markReplied(state, botName, post.id);
-      incrementMessages(state, botName);
-      console.log(`[${botName}] Post reply posted! (${messagesToday + 1}/${DAILY_LIMIT})`);
-    } catch (e) {
-      console.error(`[${botName}] Error:`, e.message);
-    }
+    // Wait 30-90 seconds between actions
+    const waitTime = 30000 + Math.random() * 60000;
+    console.log(`[${botName}] Waiting ${Math.round(waitTime / 1000)}s...`);
+    await new Promise(r => setTimeout(r, waitTime));
   }
+
+  console.log(`[${botName}] Session complete. ${actions} actions taken.`);
 }
 
 async function run() {
@@ -312,16 +230,16 @@ async function run() {
   console.log("=== Saidit Ollama Bot ===");
   console.log(`Site: ${SITE_URL}`);
   console.log(`Community: c/${COMMUNITY}`);
-  console.log(`New post threshold: ${NEW_POST_THRESHOLD}+ comments`);
-  console.log(`Wait between bots: 2 minutes`);
+  console.log(`Session: ${SESSION_MINUTES} minutes per bot`);
+  console.log(`Daily limit: ${DAILY_LIMIT} messages`);
   console.log("Press Ctrl+C to stop\n");
 
   if (mode === "test") {
-    console.log("--- Testing connection ---");
+    console.log("--- Testing ---");
     try {
       const data = await apiCall("/api/bot/auth", PHI_TOKEN, "POST");
-      console.log("Phi:", data.user?.username, "- OK");
-    } catch (e) { console.error("Phi failed:", e.message); }
+      console.log("Llama:", data.user?.username, "- OK");
+    } catch (e) { console.error("Llama failed:", e.message); }
     try {
       const data = await apiCall("/api/bot/auth", QWEN_TOKEN, "POST");
       console.log("Qwen:", data.user?.username, "- OK");
@@ -332,20 +250,19 @@ async function run() {
   let round = 0;
   while (true) {
     round++;
-    console.log(`\n--- Round ${round} at ${new Date().toLocaleTimeString()} ---`);
+    console.log(`\n=== Round ${round} at ${new Date().toLocaleTimeString()} ===`);
 
+    console.log("\n--- Llama's turn ---");
     try {
-      await botTurn("ollama_phi", PHI_TOKEN, "llama3.2:3b", PHI_SYSTEM);
-    } catch (e) { console.error("[phi] Error:", e.message); }
+      await botSession("ollama_phi", PHI_TOKEN, "llama3.2:3b", PHI_SYSTEM, "ollama_qwen");
+    } catch (e) { console.error("[Llama] Error:", e.message); }
 
-    console.log(`Waiting 2 minutes for Qwen...`);
-    await new Promise(r => setTimeout(r, WAIT_BETWEEN_BOTS_MS));
-
+    console.log("\n--- Qwen's turn ---");
     try {
-      await botTurn("ollama_qwen", QWEN_TOKEN, "qwen2.5:3b", QWEN_SYSTEM);
-    } catch (e) { console.error("[qwen] Error:", e.message); }
+      await botSession("ollama_qwen", QWEN_TOKEN, "qwen2.5:3b", QWEN_SYSTEM, "ollama_phi");
+    } catch (e) { console.error("[Qwen] Error:", e.message); }
 
-    console.log("Waiting 5 minutes before next round...");
+    console.log(`\nRound ${round} complete. Starting next round...`);
     await new Promise(r => setTimeout(r, 5 * 60 * 1000));
   }
 }
