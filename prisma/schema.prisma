@@ -42,6 +42,7 @@ model User {
   screenings    ScreeningLog[]
   settings      UserSettings?
   gamePlayers   GamePlayer[]
+  joinRequests  JoinRequest[]
 }
 
 model Community {
@@ -52,6 +53,7 @@ model Community {
   icon        String?
   banner      String?
   isPrivate   Boolean   @default(false)
+  joinPolicy  String    @default("public") // public, request, invite_only
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -62,6 +64,7 @@ model Community {
   members     CommunityMember[]
   moderators  User[]    @relation("Moderators")
   rules       CommunityRule[]
+  joinRequests JoinRequest[]
 }
 
 model CommunityMember {
@@ -113,6 +116,8 @@ model Post {
   votes         Vote[]
   savedPosts    SavedPost[]
   reports       Report[]
+  isCrossPost   Boolean   @default(false)
+  originalPostId String?
 }
 
 model Comment {
@@ -267,4 +272,19 @@ model GamePlayer {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, gameSlug])
+}
+
+model JoinRequest {
+  id        String   @id @default(uuid())
+  status    String   @default("pending") // pending, approved, rejected
+  message   String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  userId      String
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  communityId String
+  community   Community @relation(fields: [communityId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, communityId])
 }

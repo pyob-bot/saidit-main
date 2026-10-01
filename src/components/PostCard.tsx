@@ -260,6 +260,28 @@ export default function PostCard({ post, showCommunity = true, compact = false, 
                       </svg>
                       View Community
                     </Link>
+                    {user && (
+                      <button
+                        onClick={() => {
+                          const target = prompt("Enter community names to cross-post to (comma-separated):");
+                          if (target) {
+                            const names = target.split(",").map((n) => n.trim()).filter(Boolean);
+                            fetch("/api/posts/crosspost", {
+                              method: "POST",
+                              headers: { "Content-Type": "application/json" },
+                              body: JSON.stringify({ postId: post.id, communityNames: names }),
+                            }).then(() => alert("Cross-posted!"));
+                          }
+                          setShowMenu(false);
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-sm text-[#1a1a1b] hover:bg-[#f8f9fa]"
+                      >
+                        <svg className="w-4 h-4 text-[#878a8c]" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                        </svg>
+                        Cross-post
+                      </button>
+                    )}
                     {isAuthor && (
                       <>
                         <button

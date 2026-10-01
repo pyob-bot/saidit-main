@@ -9,7 +9,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { name, displayName, description, isPrivate } = await req.json();
+    const { name, displayName, description, isPrivate, joinPolicy } = await req.json();
 
     if (!name || !displayName) {
       return NextResponse.json({ error: "Name and display name are required" }, { status: 400 });
@@ -34,6 +34,7 @@ export async function POST(req: NextRequest) {
         displayName,
         description: description || null,
         isPrivate: isPrivate || false,
+        joinPolicy: joinPolicy || "public",
         creatorId: session.userId,
         members: {
           create: {

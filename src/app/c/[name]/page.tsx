@@ -30,6 +30,7 @@ interface Community {
   description?: string;
   icon?: string;
   banner?: string;
+  joinPolicy: string;
   isMember: boolean;
   isMod: boolean;
   createdAt: string;
@@ -47,6 +48,7 @@ export default function CommunityPage() {
   const [posts, setPosts] = useState<Post[]>([]);
   const [sort, setSort] = useState("hot");
   const [loading, setLoading] = useState(true);
+  const [joinRequested, setJoinRequested] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -73,21 +75,22 @@ export default function CommunityPage() {
   const handleJoin = async () => {
     if (!user) return;
     try {
-      const res = await fetch(`/api/communities/${name}/join`, {
+      const res = await fetch("/api/communities/join-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ communityName: name }),
       });
       const data = await res.json();
-      if (community) {
+      if (data.joined && community) {
         setCommunity({
           ...community,
-          isMember: data.joined,
-          _count: {
-            ...community._count,
-            members: community._count.members + (data.joined ? 1 : -1),
-          },
+          isMember: true,
+          _count: { ...community._count, members: community._count.members + 1 },
         });
+      } else if (data.requested) {
+        setJoinRequested(true);
+      } else if (data.error) {
+        alert(data.error);
       }
     } catch (error) {
       console.error("Join error:", error);
@@ -138,10 +141,12 @@ export default function CommunityPage() {
                     className={`px-4 py-1 rounded-full text-sm font-bold transition-colors ${
                       community.isMember
                         ? "bg-white border border-[#878a8c] text-[#878a8c] hover:border-[#1a1a1b] hover:text-[#1a1a1b]"
+                        : joinRequested
+                        ? "bg-[#edeff1] border border-[#ccc] text-[#878a8c] cursor-default"
                         : "bg-[#ff4500] text-white hover:bg-[#e03d00]"
                     }`}
                   >
-                    {community.isMember ? "Joined" : "Join"}
+                    {community.isMember ? "Joined" : joinRequested ? "Requested" : community.joinPolicy === "invite_only" ? "Invite Only" : "Join"}
                   </button>
                 )}
               </div>

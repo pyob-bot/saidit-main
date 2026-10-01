@@ -11,6 +11,7 @@ export default function CreateCommunityPage() {
   const [displayName, setDisplayName] = useState("");
   const [description, setDescription] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
+  const [joinPolicy, setJoinPolicy] = useState<"public" | "request" | "invite_only">("public");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -27,7 +28,7 @@ export default function CreateCommunityPage() {
       const res = await fetch("/api/communities/create", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, displayName, description, isPrivate }),
+        body: JSON.stringify({ name, displayName, description, isPrivate, joinPolicy }),
       });
       const data = await res.json();
       if (!res.ok) {
@@ -112,17 +113,31 @@ export default function CreateCommunityPage() {
                 />
               </div>
 
-              <div className="flex items-center gap-3">
-                <input
-                  type="checkbox"
-                  id="isPrivate"
-                  checked={isPrivate}
-                  onChange={(e) => setIsPrivate(e.target.checked)}
-                  className="w-4 h-4 text-[#ff4500] rounded"
-                />
-                <label htmlFor="isPrivate" className="text-sm text-[#1a1a1b]">
-                  Private community (approved members can post)
-                </label>
+              <div>
+                <label className="block text-sm font-medium text-[#1a1a1b] mb-2">Join Policy</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {([
+                    { value: "public", label: "Public", desc: "Anyone can join" },
+                    { value: "request", label: "Request", desc: "Ask to join" },
+                    { value: "invite_only", label: "Invite Only", desc: "Need invite code" },
+                  ] as const).map((option) => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setJoinPolicy(option.value)}
+                      className={`p-3 border rounded-lg text-left transition-colors ${
+                        joinPolicy === option.value
+                          ? "border-[#ff4500] bg-[#fff5f2]"
+                          : "border-[#ccc] hover:border-[#878a8c]"
+                      }`}
+                    >
+                      <div className={`text-sm font-bold ${joinPolicy === option.value ? "text-[#ff4500]" : "text-[#1a1a1b]"}`}>
+                        {option.label}
+                      </div>
+                      <div className="text-xs text-[#878a8c]">{option.desc}</div>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               <div className="flex justify-end gap-2 pt-3 border-t border-[#edeff1]">
